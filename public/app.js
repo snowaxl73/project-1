@@ -214,6 +214,15 @@ async function copy(text) {
   }
 }
 
+// 브라우저 확인창 대신 버튼을 두 번 눌러 확정
+function armed(btn, label = '한 번 더 누르면 실행') {
+  if (btn.dataset.armed) return true;
+  const orig = btn.textContent;
+  btn.dataset.armed = '1'; btn.textContent = label;
+  setTimeout(() => { delete btn.dataset.armed; btn.textContent = orig; }, 3000);
+  return false;
+}
+
 // ---------- 보완요청 문구 생성 ----------
 // 형식: UW01_회사명란_회사명작성
 function requestLines(c) {
@@ -366,8 +375,8 @@ function renderDetail() {
     }
     persist(); renderCases();
   });
-  el.querySelector('[data-act="delete"]').addEventListener('click', () => {
-    if (!confirm(`증번 ${c.policy} 점검 내용을 삭제할까요?`)) return;
+  el.querySelector('[data-act="delete"]').addEventListener('click', (e) => {
+    if (!armed(e.currentTarget, '한 번 더 누르면 삭제')) return;
     cases = cases.filter((x) => x !== c);
     selected = cases[0]?.policy ?? null;
     persist(); renderCases();
@@ -423,7 +432,7 @@ function renderTemplate() {
     renderTemplate();
   }));
   el.querySelectorAll('[data-delpage]').forEach((b) => b.addEventListener('click', () => {
-    if (!confirm('이 페이지를 삭제할까요?')) return;
+    if (!armed(b, '한 번 더 누르면 삭제')) return;
     template.splice(+b.dataset.delpage, 1); persist(); renderTemplate();
   }));
   el.querySelectorAll('[data-delfield]').forEach((b) => b.addEventListener('click', () => {
@@ -451,18 +460,18 @@ $('#tpl-add-page').addEventListener('click', () => {
   template.push({ code: `UW${n}`, title: '', note: '', fields: [] });
   persist(); renderTemplate();
 });
-$('#tpl-reset').addEventListener('click', () => {
-  if (!confirm('작성 샘플 템플릿을 기본값으로 되돌릴까요?')) return;
+$('#tpl-reset').addEventListener('click', (e) => {
+  if (!armed(e.currentTarget, '한 번 더 누르면 복원')) return;
   template = structuredClone(DEFAULT_TEMPLATE); persist(); renderTemplate();
 });
-$('#tpl-export').addEventListener('click', () => download('청약서_작성샘플_템플릿.json', JSON.stringify(template, null, 2), 'application/json'));
+$('#tpl-export').addEventListener('click', () => copy(JSON.stringify(template, null, 2)));
 $('#tpl-import').addEventListener('change', async (e) => {
   const f = e.target.files[0]; if (!f) return;
   try {
     const data = JSON.parse(await f.text());
     if (!Array.isArray(data) || !data.every((p) => p.code && Array.isArray(p.fields))) throw new Error();
     template = data; persist(); renderTemplate(); toast('템플릿을 가져왔습니다');
-  } catch { alert('올바른 템플릿 파일이 아닙니다.'); }
+  } catch { toast('템플릿 파일 형식이 맞지 않습니다. 템플릿 복사로 만든 JSON 파일을 선택하세요.'); }
   e.target.value = '';
 });
 
@@ -477,7 +486,6 @@ function renderSummary() {
 }
 $('#sum-copy').addEventListener('click', () => copy(cases.map((c) => `[${c.policy}]\n${outputText(c)}`).join('\n\n')));
 $('#sum-csv').addEventListener('click', () => {
-  const q = (s) => `"${String(s).replace(/"/g, '""')}"`;
   const rows = [['증번', '상태', '페이지', '보완요청']];
   for (const c of cases) {
     const st = caseState(c).label;
@@ -485,14 +493,8 @@ $('#sum-csv').addEventListener('click', () => {
     if (!lines.length) rows.push([c.policy, st, '', progress(c).complete ? '보완 완료' : '']);
     for (const l of lines) rows.push([c.policy, st, l.split('_')[0], l]);
   }
-  download('보완요청목록.csv', '﻿' + rows.map((r) => r.map(q).join(',')).join('\r\n'), 'text/csv');
+  // 탭 구분 → 엑셀에 그대로 붙여넣기
+  copy(rows.map((r) => r.map((v) => String(v).replace(/[\t\n]/g, ' ')).join('\t')).join('\n'));
 });
-
-function download(name, content, type) {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([content], { type }));
-  a.download = name; a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-}
 
 renderCases();

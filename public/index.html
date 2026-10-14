@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>청약서 보완 점검</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -38,8 +39,8 @@
         <h2>작성 샘플 기준 필수 작성란</h2>
         <div class="row">
           <button id="tpl-add-page">페이지 추가</button>
-          <button id="tpl-export">템플릿 내보내기</button>
-          <label class="btn">템플릿 가져오기<input id="tpl-import" type="file" accept="application/json" hidden /></label>
+          <button id="tpl-export">템플릿 복사(JSON)</button>
+          <label class="btn">템플릿 파일 가져오기<input id="tpl-import" type="file" accept="application/json" hidden /></label>
           <button id="tpl-reset" class="danger">기본값 복원</button>
         </div>
       </div>
@@ -59,13 +60,13 @@
         <h2>전체 보완요청 목록</h2>
         <div class="row">
           <button id="sum-copy">전체 복사</button>
-          <button id="sum-csv">CSV 내려받기</button>
+          <button id="sum-csv">엑셀용 표 복사</button>
         </div>
       </div>
-      <table class="summary">
+      <div class="table-wrap"><table class="summary">
         <thead><tr><th>증번</th><th>상태</th><th>하나로시스템 입력 내용</th><th></th></tr></thead>
         <tbody id="sum-body"></tbody>
-      </table>
+      </table></div>
     </section>
   </main>
 
