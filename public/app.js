@@ -18,7 +18,7 @@ const DEFAULT_TEMPLATE = [
   ]},
   { code: 'UW02', title: '보험계약청약서(실소유자·e안내장·면담보고서)', note: '고객면담보고서 정정 시 정정서명은 설계사 서명', fields: [
     F('실제소유자여부란', '예 아니오 체크'),
-    F('보험수익자 지정변경 추가약정란', '예 아니오 체크 후 계약자 서명'),
+    F('보험수익자 지정변경 추가약정란', '예 아니오 체크 후 계약자 서명', 'cond'),
     F('e안내장 수신동의란', '예 체크 후 계약자 서명'),
     F('승낙거절 안내 수신동의란', '예 체크 후 계약자 서명'),
     F('고객면담보고서 소득현황란', '소득현황 작성'),
@@ -178,7 +178,7 @@ const COND_STATUS = ['na', 'ok', 'missing', 'error', 'fix'];
 const statusOptions = (mode) => (mode === 'presence' ? PRESENCE_STATUS : mode === 'cond' ? COND_STATUS : CONTENT_STATUS);
 const isDone = (s) => s === 'ok' || s === 'na';
 
-const LS_TPL = 'uwcheck.template.v2';
+const LS_TPL = 'uwcheck.template.v3';
 const LS_CASES = 'uwcheck.cases.v1';
 
 // ---------- 저장소 (브라우저 저장 실패 시 메모리로 동작) ----------
@@ -193,8 +193,20 @@ function save(key, value) {
 let template = load(LS_TPL, structuredClone(DEFAULT_TEMPLATE));
 let cases = load(LS_CASES, []);       // [{policy, checks:{'UW01|회사명란':{status,note}}, createdAt}]
 let selected = cases[0]?.policy ?? null;
-const sampleImages = {};              // code -> objectURL (세션 한정)
-const scanImages = {};                // policy -> {code -> [objectURL]} (세션 한정, 개인정보 보호)
+// 배포본에 함께 실린 예시 데이터(있을 때만): 작성 샘플 이미지, 예시 스캔본, 예시 점검 결과
+const EMBED = window.UW_EMBED || {};
+const sampleImages = { ...(EMBED.samples || {}) };   // code -> [이미지 URL] (업로드분은 세션 한정)
+const scanImages = structuredClone(EMBED.scans || {}); // policy -> {code -> [{url,type}]} (세션 한정, 개인정보 보호)
+// 예시 점검 결과: 지정하지 않은 작성란은 기본 상태(해당 시 항목은 해당없음)로 채움
+function expandSeed(seed) {
+  const checks = {};
+  for (const page of template) for (const f of page.fields) {
+    const k = key(page.code, f.name);
+    checks[k] = seed.checks?.[k] ?? { status: f.mode === 'cond' ? 'na' : seed.defaultStatus };
+  }
+  return { policy: seed.policy, name: seed.name, memo: seed.memo, checks, createdAt: Date.now() };
+}
+const imgs = (code) => [].concat(sampleImages[code] || []);
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -304,12 +316,13 @@ function renderDetail() {
 
   el.innerHTML = `
     <div class="row space">
-      <h2>증번 ${esc(c.policy)}</h2>
+      <h2>증번 ${esc(c.policy)}${c.name ? ` · ${esc(c.name)}` : ''}</h2>
       <div class="row">
         <button data-act="all-ok">미점검 항목 모두 정상(해당 시 항목은 해당없음)</button>
         <button data-act="delete" class="danger">증번 삭제</button>
       </div>
     </div>
+    ${c.memo ? `<div class="case-memo">${c.memo.map((m) => `<p>${esc(m)}</p>`).join('')}</div>` : ''}
     ${template.map((page) => `
       <article class="page-card">
         <div class="row space">
@@ -319,12 +332,12 @@ function renderDetail() {
         ${page.note ? `<p class="note-line">※ ${esc(page.note)}</p>` : ''}
         <div class="compare">
           <figure><figcaption>작성 샘플</figcaption>${
-            sampleImages[page.code] ? `<a href="${sampleImages[page.code]}" target="_blank"><img src="${sampleImages[page.code]}" alt="${esc(page.code)} 샘플" /></a>`
+ imgs(page.code).length ? imgs(page.code).map((u) => `<img src="${u}" alt="${esc(page.code)} 작성 샘플" loading="lazy" />`).join('')
               : '<div class="ph">샘플 이미지 없음<br><small>작성 샘플 탭에서 등록</small></div>'}</figure>
           <figure><figcaption>스캔본</figcaption>${
             (scans[page.code] || []).map((s) => s.type === 'application/pdf'
               ? `<a class="ph" href="${s.url}" target="_blank">PDF 열기</a>`
-              : `<a href="${s.url}" target="_blank"><img src="${s.url}" alt="${esc(page.code)} 스캔본" /></a>`).join('')
+              : `<img src="${s.url}" alt="${esc(page.code)} 스캔본" loading="lazy" />`).join('')
             || '<div class="ph">스캔본 없음</div>'}</figure>
         </div>
         <table class="checks">
@@ -351,6 +364,8 @@ function renderDetail() {
       <pre id="output">${esc(outputText(c)) || '<span class="muted">모든 항목을 점검하면 결과가 표시됩니다.</span>'}</pre>
     </article>`;
 
+  // 이미지를 누르면 샘플·스캔본을 한 줄씩 크게 보기
+  el.querySelectorAll('.compare img').forEach((img) => img.addEventListener('click', () => img.closest('.compare').classList.toggle('zoom')));
   el.querySelectorAll('button.st').forEach((b) => b.addEventListener('click', () => {
     const cur = c.checks[b.dataset.k] || {};
     c.checks[b.dataset.k] = { ...cur, status: cur.status === b.dataset.s ? undefined : b.dataset.s };
@@ -399,7 +414,7 @@ function renderTemplate() {
         </div>
       </div>
       <input data-pi="${pi}" data-prop="note" value="${esc(page.note)}" placeholder="페이지 작성 유의사항 (선택)" />
-      ${sampleImages[page.code] ? `<img class="tpl-thumb" src="${sampleImages[page.code]}" alt="샘플" />` : ''}
+      ${imgs(page.code).map((u) => `<img class="tpl-thumb" src="${u}" alt="샘플" loading="lazy" />`).join('')}
       <table class="checks">
         <thead><tr><th>작성란</th><th>점검 방식</th><th>기본 보완요청 문구</th><th></th></tr></thead>
         <tbody>${page.fields.map((f, fi) => `<tr>
@@ -428,7 +443,7 @@ function renderTemplate() {
   }));
   el.querySelectorAll('[data-sample]').forEach((i) => i.addEventListener('change', () => {
     const f = i.files[0]; if (!f) return;
-    sampleImages[template[i.dataset.sample].code] = URL.createObjectURL(f);
+    sampleImages[template[i.dataset.sample].code] = [URL.createObjectURL(f)];
     renderTemplate();
   }));
   el.querySelectorAll('[data-delpage]').forEach((b) => b.addEventListener('click', () => {
@@ -497,4 +512,8 @@ $('#sum-csv').addEventListener('click', () => {
   copy(rows.map((r) => r.map((v) => String(v).replace(/[\t\n]/g, ' ')).join('\t')).join('\n'));
 });
 
+for (const seed of EMBED.seedCases || []) {
+  if (!cases.some((c) => c.policy === seed.policy)) cases.unshift(expandSeed(seed));
+}
+selected = cases[0]?.policy ?? null;
 renderCases();

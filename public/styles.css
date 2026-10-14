@@ -82,3 +82,9 @@ pre { margin: 0; white-space: pre-wrap; word-break: break-all; font-family: ui-m
 .st.on.na { background: var(--pending); color: #fff; border-color: var(--pending); }
 .note-line { margin: 0; color: var(--missing); font-size: 13px; }
 .table-wrap { overflow-x: auto; }
+.case-memo { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--missing); border-radius: 8px; padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; }
+.case-memo p { margin: 0; line-height: 1.6; }
+.compare figure img + img { margin-top: 6px; }
+.compare img { cursor: zoom-in; }
+.compare.zoom { grid-template-columns: 1fr; }
+.compare.zoom img { max-height: none; cursor: zoom-out; }
