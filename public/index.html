@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>청약서 보완 점검</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>청약서 보완 점검</h1>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="check">증번별 점검</button>
+      <button class="tab" data-tab="template">작성 샘플(필수 작성란)</button>
+      <button class="tab" data-tab="summary">전체 보완요청 목록</button>
+    </nav>
+  </header>
+
+  <!-- 증번별 점검 -->
+  <main id="tab-check" class="tab-panel">
+    <aside class="sidebar">
+      <form id="add-case" class="row">
+        <input id="new-policy" placeholder="증번 입력" required />
+        <button type="submit">추가</button>
+      </form>
+      <ul id="case-list" class="case-list"></ul>
+    </aside>
+
+    <section id="case-detail" class="detail">
+      <p class="empty">왼쪽에서 증번을 추가하거나 선택하세요.</p>
+    </section>
+  </main>
+
+  <!-- 작성 샘플 템플릿 -->
+  <main id="tab-template" class="tab-panel hidden">
+    <section class="detail wide">
+      <div class="row space">
+        <h2>작성 샘플 기준 필수 작성란</h2>
+        <div class="row">
+          <button id="tpl-add-page">페이지 추가</button>
+          <button id="tpl-export">템플릿 내보내기</button>
+          <label class="btn">템플릿 가져오기<input id="tpl-import" type="file" accept="application/json" hidden /></label>
+          <button id="tpl-reset" class="danger">기본값 복원</button>
+        </div>
+      </div>
+      <p class="hint">
+        페이지 코드(UW01 등)와 각 작성란, 보완요청 문구를 실제 작성 샘플에 맞게 수정하세요.
+        <b>작성여부만 확인</b>으로 지정한 항목(성명·서명 등)은 내용 대조 없이 기재 여부만 봅니다.
+        페이지별 샘플 이미지를 올리면 점검 화면에서 스캔본과 나란히 비교할 수 있습니다.
+      </p>
+      <div id="tpl-pages"></div>
+    </section>
+  </main>
+
+  <!-- 전체 요약 -->
+  <main id="tab-summary" class="tab-panel hidden">
+    <section class="detail wide">
+      <div class="row space">
+        <h2>전체 보완요청 목록</h2>
+        <div class="row">
+          <button id="sum-copy">전체 복사</button>
+          <button id="sum-csv">CSV 내려받기</button>
+        </div>
+      </div>
+      <table class="summary">
+        <thead><tr><th>증번</th><th>상태</th><th>하나로시스템 입력 내용</th><th></th></tr></thead>
+        <tbody id="sum-body"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="app.js"></script>
+</body>
+</html>
