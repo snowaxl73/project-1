@@ -204,7 +204,7 @@ function expandSeed(seed) {
     const k = key(page.code, f.name);
     checks[k] = seed.checks?.[k] ?? { status: f.mode === 'cond' ? 'na' : seed.defaultStatus };
   }
-  return { policy: seed.policy, name: seed.name, memo: seed.memo, checks, createdAt: Date.now() };
+  return { policy: seed.policy, name: seed.name, memo: seed.memo, seedVersion: seed.version, checks, createdAt: Date.now() };
 }
 const imgs = (code) => [].concat(sampleImages[code] || []);
 
@@ -237,18 +237,21 @@ function armed(btn, label = '한 번 더 누르면 실행') {
 
 // ---------- 보완요청 문구 생성 ----------
 // 형식: UW01_회사명란_회사명작성
-function requestLines(c) {
-  const lines = [];
+function requestItems(c) {
+  const items = [];
   for (const page of template) {
     for (const f of page.fields) {
-      const chk = c.checks[key(page.code, f.name)];
+      const k = key(page.code, f.name);
+      const chk = c.checks[k];
       if (!chk || isDone(chk.status)) continue;
       const action = clean(chk.note) || clean(f.fix) || STATUS[chk.status].label;
-      lines.push(`${page.code}_${clean(f.name)}_${action}`);
+      items.push({ k, code: page.code, title: page.title, field: clean(f.name), action, status: chk.status,
+        line: `${page.code}_${clean(f.name)}_${action}` });
     }
   }
-  return lines;
+  return items;
 }
+function requestLines(c) { return requestItems(c).map((i) => i.line); }
 function progress(c) {
   let total = 0, done = 0, bad = 0;
   for (const page of template) for (const f of page.fields) {
@@ -271,6 +274,56 @@ function outputText(c) {
     return `[보완 완료 안내] 증번 ${c.policy}: 청약서 전 페이지가 작성 샘플과 동일하게 작성 완료되어 보완 사항이 없습니다.`;
   }
   return lines.join('\n');
+}
+
+// 보완요청을 한 건씩 나눠 보여주고, 하나로시스템에 입력한 건은 체크해 둠
+function outputPanel(c) {
+  const items = requestItems(c);
+  const p = progress(c);
+  const entered = c.entered || {};
+  const doneCnt = items.filter((i) => entered[i.k]).length;
+  const head = `
+    <div class="row space">
+      <h3>하나로시스템 보완요청 입력 내용</h3>
+      <div class="row">
+        ${items.length ? `<span class="count tabnum">입력 ${doneCnt} / ${items.length}건</span>` : ''}
+        <button data-act="copy">전체 복사</button>
+      </div>
+    </div>
+    <p class="hint">ga.hanalife.co.kr 에서 증번 <b>${esc(c.policy)}</b>을 조회한 뒤, 아래 항목을 한 건씩 복사해 보완요청란에 입력하고 <b>입력함</b>을 체크하세요.</p>`;
+  if (p.complete && !items.length) return head + `<p class="done-msg">${esc(outputText(c))}</p>`;
+  if (!items.length) return head + '<p class="muted">모든 항목을 점검하면 결과가 표시됩니다.</p>';
+  let n = 0; let prev = '';
+  const rows = items.map((i) => {
+    const grp = i.code !== prev ? `<li class="req-group"><span class="code">${esc(i.code)}</span> ${esc(i.title || '')}</li>` : '';
+    prev = i.code; n++;
+    return `${grp}<li class="req ${entered[i.k] ? 'entered' : ''}">
+      <span class="req-no tabnum">${n}</span>
+      <div class="req-body">
+        <div class="req-field">${esc(i.field)} <span class="badge ${STATUS[i.status].cls}">${STATUS[i.status].label}</span></div>
+        <div class="req-action">${esc(i.action)}</div>
+        <code class="req-line">${esc(i.line)}</code>
+      </div>
+      <div class="req-ctl">
+        <button class="small" data-copyline="${esc(i.k)}">복사</button>
+        <label class="chk"><input type="checkbox" data-entered="${esc(i.k)}" ${entered[i.k] ? 'checked' : ''} /> 입력함</label>
+      </div>
+    </li>`;
+  }).join('');
+  return head + `<ol class="req-list">${rows}</ol>`;
+}
+function bindOutput(c) {
+  const card = $('#output-card'); if (!card) return;
+  const items = requestItems(c);
+  card.querySelector('[data-act="copy"]').addEventListener('click', () => copy(outputText(c)));
+  card.querySelectorAll('[data-copyline]').forEach((b) => b.addEventListener('click', () => {
+    const it = items.find((i) => i.k === b.dataset.copyline); if (it) copy(it.line);
+  }));
+  card.querySelectorAll('[data-entered]').forEach((cb) => cb.addEventListener('change', () => {
+    c.entered = c.entered || {};
+    if (cb.checked) c.entered[cb.dataset.entered] = true; else delete c.entered[cb.dataset.entered];
+    persist(); card.innerHTML = outputPanel(c); bindOutput(c);
+  }));
 }
 
 // ---------- 탭 ----------
@@ -355,14 +408,7 @@ function renderDetail() {
           }).join('')}</tbody>
         </table>
       </article>`).join('')}
-    <article class="page-card output">
-      <div class="row space">
-        <h3>하나로시스템 보완요청 입력 내용</h3>
-        <button data-act="copy">복사</button>
-      </div>
-      <p class="hint">ga.hanalife.co.kr 에서 증번 <b>${esc(c.policy)}</b> 조회 후 보완요청란에 붙여넣으세요.</p>
-      <pre id="output">${esc(outputText(c)) || '<span class="muted">모든 항목을 점검하면 결과가 표시됩니다.</span>'}</pre>
-    </article>`;
+    <article class="page-card output" id="output-card">${outputPanel(c)}    </article>`;
 
   // 이미지를 누르면 샘플·스캔본을 한 줄씩 크게 보기
   el.querySelectorAll('.compare img').forEach((img) => img.addEventListener('click', () => img.closest('.compare').classList.toggle('zoom')));
@@ -375,14 +421,14 @@ function renderDetail() {
   el.querySelectorAll('input.note').forEach((i) => i.addEventListener('input', () => {
     c.checks[i.dataset.k].note = i.value;
     persist();
-    $('#output').textContent = outputText(c);
+    $('#output-card').innerHTML = outputPanel(c); bindOutput(c);
   }));
   el.querySelectorAll('input[data-scan]').forEach((i) => i.addEventListener('change', () => {
     const arr = scans[i.dataset.scan] ||= [];
     for (const f of i.files) arr.push({ url: URL.createObjectURL(f), type: f.type });
     renderDetail();
   }));
-  el.querySelector('[data-act="copy"]').addEventListener('click', () => copy(outputText(c)));
+  bindOutput(c);
   el.querySelector('[data-act="all-ok"]').addEventListener('click', () => {
     for (const page of template) for (const f of page.fields) {
       const k = key(page.code, f.name);
@@ -495,7 +541,7 @@ function renderSummary() {
   $('#sum-body').innerHTML = cases.map((c, i) => {
     const st = caseState(c);
     return `<tr><td>${esc(c.policy)}</td><td><span class="badge ${st.cls}">${esc(st.label)}</span></td>
-      <td><pre>${esc(outputText(c))}</pre></td><td><button class="small" data-copy="${i}">복사</button></td></tr>`;
+      <td>${requestLines(c).length ? `<ol class="sum-list">${requestLines(c).map((l) => `<li>${esc(l)}</li>`).join('')}</ol>` : `<p>${esc(outputText(c))}</p>`}</td><td><button class="small" data-copy="${i}">복사</button></td></tr>`;
   }).join('') || '<tr><td colspan="4" class="muted">등록된 증번이 없습니다</td></tr>';
   document.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', () => copy(outputText(cases[b.dataset.copy]))));
 }
@@ -513,7 +559,10 @@ $('#sum-csv').addEventListener('click', () => {
 });
 
 for (const seed of EMBED.seedCases || []) {
-  if (!cases.some((c) => c.policy === seed.policy)) cases.unshift(expandSeed(seed));
+  // 예시 데이터가 새 버전이면 이전에 저장된 같은 증번 결과를 교체
+  const i = cases.findIndex((c) => c.policy === seed.policy);
+  if (i < 0) cases.unshift(expandSeed(seed));
+  else if (seed.version && cases[i].seedVersion !== seed.version) cases[i] = expandSeed(seed);
 }
 selected = cases[0]?.policy ?? null;
 renderCases();

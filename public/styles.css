@@ -88,3 +88,24 @@ pre { margin: 0; white-space: pre-wrap; word-break: break-all; font-family: ui-m
 .compare img { cursor: zoom-in; }
 .compare.zoom { grid-template-columns: 1fr; }
 .compare.zoom img { max-height: none; cursor: zoom-out; }
+
+.tabnum { font-variant-numeric: tabular-nums; }
+.count { font-size: 13px; color: var(--muted); }
+.done-msg { margin: 0; padding: 12px 14px; border-radius: 8px; background: color-mix(in srgb, var(--ok) 12%, var(--panel)); color: var(--text); }
+.req-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.req-group { margin-top: 10px; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+.req-group:first-child { margin-top: 0; }
+.req { display: grid; grid-template-columns: 32px 1fr auto; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-left: 4px solid var(--missing); border-radius: 8px; background: var(--panel); }
+.req.entered { border-left-color: var(--ok); opacity: .6; }
+.req.entered .req-action { text-decoration: line-through; }
+.req-no { width: 28px; height: 28px; border-radius: 50%; background: var(--bg); display: grid; place-items: center; font-size: 12px; font-weight: 600; color: var(--muted); }
+.req-body { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.req-field { font-size: 13px; color: var(--muted); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.req-action { font-size: 15px; font-weight: 500; }
+.req-line { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--muted); word-break: break-all; }
+.req-ctl { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.chk { font-size: 12px; display: flex; gap: 4px; align-items: center; cursor: pointer; white-space: nowrap; }
+.chk input { width: auto; }
+.badge.error { background: var(--error); } .badge.fix { background: var(--fix); }
+.sum-list { margin: 0; padding-left: 20px; font-size: 12px; line-height: 1.7; font-family: ui-monospace, Consolas, monospace; }
+@media (max-width: 800px) { .req { grid-template-columns: 28px 1fr; } .req-ctl { grid-column: 2; flex-direction: row; align-items: center; } }
